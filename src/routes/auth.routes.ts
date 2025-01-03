@@ -3,10 +3,16 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
 import { tokenService } from '../services/token.service';
 import { User } from '../models/user.model';
 import { Invitation } from '../models/invitation.model';
+import { loginValidation, registerValidation, validate } from '../middleware/validation.middleware';
+import { loginLimiter, registerLimiter } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', 
+    loginLimiter,
+    loginValidation,
+    validate,
+    async (req: Request, res: Response): Promise<void> => {
     try {
         const { username, password } = req.body;
         
@@ -113,7 +119,11 @@ router.post('/logout', authMiddleware, (req: AuthRequest, res: Response): void =
     }
 });
 
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+router.post('/register',
+    registerLimiter,
+    registerValidation,
+    validate,
+    async (req: Request, res: Response): Promise<void> => {
     try {
         const { username, password, invitationCode } = req.body;
 
