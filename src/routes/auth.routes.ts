@@ -54,4 +54,45 @@ router.get('/protected', authMiddleware, (req: AuthRequest, res) => {
     res.json({ message: 'This is a protected route', user: req.user });
 });
 
+// Vérification de la validité du token
+router.post('/verify', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { accessToken } = req.body;
+        
+        if (!accessToken) {
+            res.status(400).json({ message: 'Access token is required' });
+            return;
+        }
+
+        const payload = tokenService.verifyAccessToken(accessToken);
+        res.json({ 
+            valid: true,
+            user: payload
+        });
+    } catch (error) {
+        res.status(401).json({ 
+            valid: false,
+            message: 'Invalid token',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+// Déconnexion
+router.post('/logout', authMiddleware, (req: AuthRequest, res: Response): void => {
+    try {
+        // Dans une implémentation future avec base de données,
+        // on pourrait blacklister le refresh token ici
+        
+        res.json({ 
+            message: 'Logout successful'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Logout failed',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
 export default router; 
