@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Test Client</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div>
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div id="webrtc-section" style="display: none;">
+        <h2>Connected Users</h2>
+        <ul id="users-list"></ul>
+        <div id="status"></div>
+        
+        <h2>Call Controls</h2>
+        <div id="call-controls">
+            <div id="incoming-call" style="display: none;">
+                <p>Incoming call from: <span id="caller-name"></span></p>
+                <button onclick="answerCall()">Answer</button>
+                <button onclick="rejectCall()">Reject</button>
+            </div>
+            <button id="end-call" style="display: none;" onclick="endCall()">End Call</button>
+        </div>
+
+        <h2>Debug Info</h2>
+        <div id="debug-info"></div>
+    </div>
+
+    <script>
+        let socket;
+        let accessToken;
+        let currentCallId;
+
+        function debug(message) {
+            const debugDiv = document.getElementById('debug-info');
+            debugDiv.innerHTML += `<p>${new Date().toISOString()}: ${message}</p>`;
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                if (data.accessToken) {
+                    accessToken = data.accessToken;
+                    connectWebSocket();
+                    document.getElementById('webrtc-section').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Login failed:', error);
+            }
+        }
+
+        function connectWebSocket() {
+            socket = io('http://localhost:3000', {
+                auth: { token: accessToken }
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('status').textContent = 'Connected!';
+                debug('WebSocket connected');
+            });
+
+            socket.on('users', (users) => {
+                const list = document.getElementById('users-list');
+                list.innerHTML = '';
+                users.forEach(user => {
+                    const li = document.createElement('li');
+                    const callButton = document.createElement('button');
+                    callButton.textContent = 'Call';
+                    callButton.onclick = () => initiateCall(user.id);
+                    li.textContent = `${user.username} (${user.id})`;
+                    li.appendChild(callButton);
+                    list.appendChild(li);
+                });
+                debug('Users list updated');
+            });
+
+            socket.on('incomingCall', (data) => {
+                debug(`Incoming call from ${data.username}`);
+                document.getElementById('caller-name').textContent = data.username;
+                document.getElementById('incoming-call').style.display = 'block';
+                currentCallId = data.from;
+            });
+
+            socket.on('callAnswered', (data) => {
+                debug(`Call answered by ${data.from}`);
+                document.getElementById('end-call').style.display = 'block';
+            });
+
+            socket.on('callRejected', (data) => {
+                debug(`Call rejected by ${data.from}`);
+                currentCallId = null;
+            });
+
+            socket.on('callEnded', (data) => {
+                debug(`Call ended by ${data.from}`);
+                document.getElementById('end-call').style.display = 'none';
+                currentCallId = null;
+            });
+
+            socket.on('connect_error', (error) => {
+                debug(`Connection error: ${error.message}`);
+                document.getElementById('status').textContent = 'Connection failed!';
+            });
+        }
+
+        function initiateCall(userId) {
+            debug(`Initiating call to ${userId}`);
+            socket.emit('callUser', {
+                targetUserId: userId,
+                signalData: { type: 'offer' }
+            });
+            currentCallId = userId;
+            document.getElementById('end-call').style.display = 'block';
+        }
+
+        function answerCall() {
+            if (currentCallId) {
+                debug(`Answering call from ${currentCallId}`);
+                socket.emit('answerCall', {
+                    targetUserId: currentCallId,
+                    signalData: { type: 'answer' }
+                });
+                document.getElementById('incoming-call').style.display = 'none';
+                document.getElementById('end-call').style.display = 'block';
+            }
+        }
+
+        function rejectCall() {
+            if (currentCallId) {
+                debug(`Rejecting call from ${currentCallId}`);
+                socket.emit('rejectCall', { targetUserId: currentCallId });
+                document.getElementById('incoming-call').style.display = 'none';
+                currentCallId = null;
+            }
+        }
+
+        function endCall() {
+            if (currentCallId) {
+                debug(`Ending call with ${currentCallId}`);
+                socket.emit('endCall', { targetUserId: currentCallId });
+                document.getElementById('end-call').style.display = 'none';
+                currentCallId = null;
+            }
+        }
+    </script>
+</body>
+</html> 

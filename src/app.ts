@@ -3,10 +3,16 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import { errorHandler } from './utils/error.handler';
+import { createServer } from 'http';
+import { WebRTCService } from './services/webrtc.service';
+import cors from 'cors';
 
-const app = express();
+export const app = express();
+const httpServer = createServer(app);
+const webRTCService = new WebRTCService(httpServer);
 
 app.use(express.json());
+app.use(cors());
 
 // Routes
 app.use('/auth', authRoutes);
@@ -30,7 +36,7 @@ try {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
