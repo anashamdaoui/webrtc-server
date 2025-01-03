@@ -1,28 +1,46 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
 import { tokenService } from '../services/token.service';
+import { User } from '../models/user.model';
+import { Invitation } from '../models/invitation.model';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
     try {
         const { username, password } = req.body;
         
-        // TODO: Vérifier les credentials dans la DB
-        // Pour l'instant, on simule une authentification réussie
-        const userData = {
-            userId: '123', // Sera remplacé par l'ID de la DB
-            username: username
-        };
+        // Vérifier l'utilisateur dans la base de données
+        const user = await User.findOne({ username });
+        if (!user) {
+            res.status(401).json({ message: 'Invalid credentials' });
+            return;
+        }
 
-        const tokens = tokenService.generateTokenPair(userData);
+        // Vérifier le mot de passe
+        const isValidPassword = await user.comparePassword(password);
+        if (!isValidPassword) {
+            res.status(401).json({ message: 'Invalid credentials' });
+            return;
+        }
+
+        // Mettre à jour la dernière connexion
+        user.lastLogin = new Date();
+        await user.save();
+
+        // Générer les tokens
+        const tokens = tokenService.generateTokenPair({
+            userId: user._id.toString(),
+            username: user.username
+        });
 
         res.json({
             message: 'Login successful',
             ...tokens
         });
     } catch (error) {
-        res.status(401).json({ message: 'Authentication failed' });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
@@ -92,6 +110,49 @@ router.post('/logout', authMiddleware, (req: AuthRequest, res: Response): void =
             message: 'Logout failed',
             error: error instanceof Error ? error.message : 'Unknown error'
         });
+    }
+});
+
+router.post('/register', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { username, password, invitationCode } = req.body;
+
+        // Vérifier le code d'invitation
+        const invitation = await Invitation.findOne({ code: invitationCode, isUsed: false });
+        if (!invitation) {
+            res.status(400).json({ message: 'Invalid or used invitation code' });
+            return;
+        }
+
+        // Vérifier si l'utilisateur existe déjà
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            res.status(400).json({ message: 'Username already exists' });
+            return;
+        }
+
+        // Créer l'utilisateur
+        const user = await User.create({ username, password });
+
+        // Marquer le code comme utilisé
+        invitation.isUsed = true;
+        invitation.usedBy = user._id;
+        invitation.usedAt = new Date();
+        await invitation.save();
+
+        // Générer les tokens
+        const tokens = tokenService.generateTokenPair({
+            userId: user._id.toString(),
+            username: user.username
+        });
+
+        res.status(201).json({
+            message: 'Registration successful',
+            ...tokens
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ message: 'Registration failed' });
     }
 });
 
