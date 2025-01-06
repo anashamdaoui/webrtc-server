@@ -62,6 +62,9 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 echo "Configurer Nginx avec le certificat auto-signé"
 sudo cp nginx/webrtc-app.conf /etc/nginx/sites-available/webrtc-app.conf
 sudo ln -s /etc/nginx/sites-available/webrtc-app.conf /etc/nginx/sites-enabled/
+# Ajouter le certificat let's encrypt
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d uconnect.zapto.org --quiet
 sudo nginx -t
 sudo systemctl restart nginx
 sudo netstat -tulpn | grep nginx

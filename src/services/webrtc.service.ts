@@ -17,8 +17,8 @@ export class WebRTCService {
         this.io = new SocketServer(server, {
             cors: {
                 origin: "*", // En production, pour des raisons de sécurité : Changer origin: "*" en l’URL de ton frontend : origin: "https://mon-extension-chrome.com".
-                methods: ["GET", "POST"],
-                allowedHeaders: ["Content-Type", "Authorization"]
+                methods: ["GET", "POST", "OPTIONS"],
+                allowedHeaders: ["Content-Type", "Authorization", "Access-Control-Allow-Origin"]
             }
         });
 
