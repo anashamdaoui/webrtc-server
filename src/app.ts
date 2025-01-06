@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
+import userRoutes from './routes/user.routes';
 import { errorHandler } from './utils/error.handler';
 import { createServer } from 'http';
 import { WebRTCService } from './services/webrtc.service';
@@ -17,6 +18,7 @@ app.use(cors());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
+app.use('/api/users', userRoutes);
 
 // Gestionnaire d'erreurs global
 app.use(errorHandler);
