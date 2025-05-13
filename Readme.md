@@ -1,4 +1,4 @@
-# **JWT (JSON Web Tokens)**
+# **Quick documentation of the API**
 
 ## JWT (JSON Web Tokens) Features
 - **Installation of `jsonwebtoken`**
